@@ -11,12 +11,18 @@
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 // Using gemini-2.5-flash because gemini-2.0-flash has a hard quota limit of 0 for this key.
 // The previous 503 error on 2.5 was just a temporary high demand spike, which the retry loop will handle.
-const MODEL_NAME = 'gemini-3-flash-preview';  
+const MODEL_NAME = 'gemini-2.5-flash';
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
 
-async function callGemini(systemInstruction, userMessage, retries = 3) {
+async function callGemini(systemInstruction, userMessage, schema = null, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      const config = {
+        responseMimeType: "application/json",
+        temperature: 0.2,
+      };
+      if (schema) config.responseSchema = schema;
+
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -32,10 +38,7 @@ async function callGemini(systemInstruction, userMessage, retries = 3) {
               parts: [{ text: userMessage }]
             }
           ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.2, // Low temperature for more deterministic JSON outputs
-          }
+          generationConfig: config
         }),
       });
 
@@ -227,7 +230,19 @@ Return this exact JSON:
   "questionType": "definition/explanation/application/analysis/evaluation/creation"
 }`;
 
-  return await callGemini(system, user);
+  const schema = {
+    type: "OBJECT",
+    properties: {
+      question: { type: "STRING" },
+      bloomLevel: { type: "INTEGER" },
+      expectedAnswer: { type: "STRING" },
+      hint: { type: "STRING" },
+      questionType: { type: "STRING" }
+    },
+    required: ["question", "bloomLevel", "expectedAnswer", "hint", "questionType"]
+  };
+
+  return await callGemini(system, user, schema);
 }
 
 // ═══════════════════════════════════════════════
@@ -257,7 +272,23 @@ Return this exact JSON:
 }
 Note: score should be a number between 0.0 and 1.0. bloomsLevelAchieved should be an integer 1-6.`;
 
-  return await callGemini(system, user);
+  const schema = {
+    type: "OBJECT",
+    properties: {
+      isCorrect: { type: "BOOLEAN" },
+      score: { type: "NUMBER" },
+      bloomsLevelAchieved: { type: "INTEGER" },
+      feedback: { type: "STRING" },
+      misconceptionDetected: { type: "BOOLEAN" },
+      misconceptionName: { type: "STRING" },
+      misconceptionExplanation: { type: "STRING" },
+      correctExplanation: { type: "STRING" },
+      encouragement: { type: "STRING" }
+    },
+    required: ["isCorrect", "score", "bloomsLevelAchieved", "feedback", "misconceptionDetected", "correctExplanation", "encouragement"]
+  };
+
+  return await callGemini(system, user, schema);
 }
 
 // ═══════════════════════════════════════════════
@@ -310,7 +341,17 @@ Generate teaching content in this exact JSON structure:
   }
 }`;
 
-  return await callGemini(system, user);
+  const schema = {
+    type: "OBJECT",
+    properties: {
+      partA: { type: "OBJECT", properties: { title: { type: "STRING" }, content: { type: "STRING" } } },
+      partB: { type: "OBJECT", properties: { title: { type: "STRING" }, content: { type: "STRING" }, diagramDescription: { type: "STRING" } } },
+      partC: { type: "OBJECT", properties: { title: { type: "STRING" }, content: { type: "STRING" } } },
+      partD: { type: "OBJECT", properties: { title: { type: "STRING" }, microChecks: { type: "ARRAY", items: { type: "OBJECT", properties: { afterSection: { type: "STRING" }, question: { type: "STRING" }, expectedAnswer: { type: "STRING" } } } } } }
+    }
+  };
+
+  return await callGemini(system, user, schema);
 }
 
 export default {

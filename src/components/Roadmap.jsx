@@ -9,6 +9,8 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   MarkerType,
+  Handle,
+  Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Route, Sparkles, RotateCcw, AlertTriangle, Lock, CheckCircle2 } from 'lucide-react';
@@ -35,6 +37,7 @@ function ConceptNode({ data }) {
         ${data.isLocked ? 'opacity-50' : ''}`}
       style={{ background: 'rgba(20, 21, 30, 0.85)' }}
     >
+      <Handle type="target" position={Position.Left} style={{ background: '#475569', width: 8, height: 8 }} />
       <div className="flex items-center justify-between mb-2">
         <span className={`text-[10px] font-bold uppercase tracking-widest ${colors.text}`}>
           {data.tierLabel}
@@ -63,6 +66,7 @@ function ConceptNode({ data }) {
           {mastery >= 70 && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
         </div>
       </div>
+      <Handle type="source" position={Position.Right} style={{ background: '#475569', width: 8, height: 8 }} />
     </div>
   );
 }
@@ -98,10 +102,11 @@ export default function Roadmap() {
       const concept = session.concepts[conceptId];
       if (!concept) return null;
 
-      const row = Math.floor(idx / COLS);
-      const col = idx % COLS;
-      const x = row % 2 === 0 ? col * X_GAP : (COLS - 1 - col) * X_GAP;
-      const y = row * Y_GAP;
+      // Clean horizontal layout (Left to Right)
+      const x = idx * 320;
+      // Stagger Y slightly based on tier to make it look organic
+      const yTier = concept.tier === 'foundation' ? 0 : concept.tier === 'bridge' ? 120 : concept.tier === 'core' ? 240 : 360;
+      const y = yTier + (Math.sin(idx) * 40); // slight wave
 
       return {
         id: conceptId,

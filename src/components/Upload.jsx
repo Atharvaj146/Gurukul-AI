@@ -5,6 +5,8 @@ import { extractTextFromPDF } from '../utils/pdfParser';
 import { extractConcepts } from '../services/geminiAPI';
 import { createSession } from '../services/knowledgeModel';
 
+import Science from './Science';
+
 export default function Upload() {
   const { navigate, setLoading, setError, notify, loading } = useSession();
   const [topic, setTopic] = useState('');
@@ -88,22 +90,34 @@ export default function Upload() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center items-center p-6 md:p-12">
-      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center animate-fade-in">
+    <>
+      <div className="min-h-screen bg-brand-navy flex flex-col justify-center items-center p-6 md:p-12 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-brand-gold/10 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-[#050B16] blur-[80px] pointer-events-none" />
+
+      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center animate-fade-in relative z-10">
         
         {/* Left Column: Typography & Copy */}
         <div className="space-y-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-surface-border text-xs font-semibold uppercase tracking-widest text-text-secondary">
-            <div className="w-2 h-2 rounded-full bg-card-yellow animate-pulse" />
-            Gurukul AI
+          <div className="flex flex-col items-start gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-brand-gold animate-pulse shadow-[0_0_15px_rgba(232,139,35,0.8)]" />
+              <h2 className="text-2xl md:text-3xl font-display font-extrabold text-white tracking-[0.2em] uppercase">
+                Gurukul <span className="text-brand-gold">AI</span>
+              </h2>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-navyDark/50 border border-brand-gold/20 text-xs font-semibold uppercase tracking-widest text-blue-200/80 shadow-lg">
+              Next-Gen Learning Platform
+            </div>
           </div>
           
           <h1 className="text-5xl md:text-7xl heading-display text-white leading-[1.1]">
             Master any subject. <br />
-            <span className="text-text-secondary">Retain it forever.</span>
+            <span className="text-brand-gold drop-shadow-md">Retain it forever.</span>
           </h1>
           
-          <p className="text-lg text-text-secondary max-w-lg leading-relaxed">
+          <p className="text-lg text-blue-100/70 max-w-lg leading-relaxed">
             Upload your syllabus, lecture notes, or textbooks. We build a personalized learning roadmap based on 90 years of cognitive science—not just a generic chat.
           </p>
 
@@ -125,6 +139,24 @@ export default function Upload() {
                 <BookOpen className="w-4 h-4" />
               </div>
               Bloom's Taxonomy
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <Zap className="w-4 h-4" />
+              </div>
+              Active Recall
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+              <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              Feynman Technique
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+              <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <FileText className="w-4 h-4" />
+              </div>
+              Socratic Questioning
             </div>
           </div>
         </div>
@@ -226,7 +258,7 @@ export default function Upload() {
                 </>
               ) : (
                 <>
-                  Generate Roadmap <ArrowRight className="w-5 h-5" />
+                  Start Learning <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>
@@ -234,7 +266,9 @@ export default function Upload() {
 
         </div>
       </div>
-    </div>
+      </div>
+      <Science />
+    </>
   );
 }
 

@@ -233,7 +233,8 @@ export function recordAnswer(conceptId, confidence, isCorrect, bloomLevel, misco
   // Update mastery score
   if (isCorrect) {
     concept.correctStreak += 1;
-    concept.masteryScore = Math.min(1.0, concept.masteryScore + 0.1);
+    // Boost mastery immediately to 0.8 to confirm mastery in one shot, preventing double quiz
+    concept.masteryScore = Math.max(0.8, concept.masteryScore + 0.3);
   } else {
     concept.correctStreak = 0;
     concept.masteryScore = Math.max(0.0, concept.masteryScore - 0.08);

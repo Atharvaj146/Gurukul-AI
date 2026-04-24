@@ -41,7 +41,10 @@ export default function Teaching() {
     setPhase('loading');
     const s = getSession();
     setLocalSession(s);
-    if (!s) return;
+    if (!s) {
+      navigate('upload');
+      return;
+    }
 
     // Find the current concept from roadmap
     const idx = s.roadmap.currentIndex || 0;

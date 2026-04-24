@@ -13,6 +13,12 @@ export default {
           hover: '#242631',
           border: '#2E313D',
         },
+        brand: {
+          navy: '#0F1E3D',
+          navyDark: '#081226',
+          gold: '#E88B23',
+          goldHover: '#C6751C',
+        },
         primary: {
           DEFAULT: '#818CF8', // Vibrant Indigo
           hover: '#6366F1',
