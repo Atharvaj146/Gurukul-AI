@@ -50,7 +50,7 @@ export function SessionProvider({ children }) {
         'diagnostic_pending': 'diagnostic',
         'diagnostic_done': 'gap-analysis',
         'roadmap_pending': 'roadmap',
-        'learning': 'quiz',
+        'learning': 'teaching',
         'consolidation': 'quiz',
         'complete': 'dashboard',
       };

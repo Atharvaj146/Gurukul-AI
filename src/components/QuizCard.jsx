@@ -48,6 +48,12 @@ export default function QuizCard() {
     const pick = pickNextConcept(s);
     if (!pick) { navigate('dashboard'); return; }
 
+    // If the next concept hasn't been taught yet, redirect to the Teaching phase
+    if (pick.concept.teachingStatus !== 'taught' && pick.concept.teachingStatus !== 'confirmed') {
+      navigate('teaching');
+      return;
+    }
+
     setCurrentConcept(pick.concept);
     setReason(pick.reason);
 

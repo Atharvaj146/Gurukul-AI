@@ -32,6 +32,26 @@ export default function Upload() {
     }
   };
 
+  const handleFileSelect = (e) => {
+    if (e.target.files?.[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleRemoveFile = (e) => {
+    e.stopPropagation();
+    setFile(null);
+    // Reset the file input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCardClick = () => {
+    // Only open file picker if no file is currently selected
+    if (!file) {
+      fileInputRef.current?.click();
+    }
+  };
+
   const handleStart = async () => {
     if (!topic.trim()) {
       notify('Please enter what you want to learn', 'error');
@@ -127,20 +147,20 @@ export default function Upload() {
 
           {/* PDF Upload Card (Colored) */}
           <div 
-            className={`bento-card col-span-1 p-6 flex flex-col items-center justify-center text-center gap-4 cursor-pointer transition-colors
+            className={`bento-card col-span-1 p-6 flex flex-col items-center justify-center text-center gap-4 cursor-pointer transition-all duration-200
               ${file ? 'card-green' : 'card-purple'}
               ${dragActive ? 'scale-[1.02] shadow-xl' : ''}`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleCardClick}
           >
             <input
               ref={fileInputRef}
               type="file"
               accept=".pdf"
-              onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
+              onChange={handleFileSelect}
               className="hidden"
             />
             {file ? (
@@ -150,8 +170,17 @@ export default function Upload() {
                 </div>
                 <div>
                   <p className="font-semibold">{file.name}</p>
-                  <p className="text-xs opacity-70 mt-1">{(file.size / 1024).toFixed(0)} KB • Click to remove</p>
+                  <p className="text-xs opacity-70 mt-1">{(file.size / 1024).toFixed(0)} KB</p>
                 </div>
+                {/* Remove button */}
+                <button
+                  onClick={handleRemoveFile}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/15 hover:bg-black/25 text-sm font-medium transition-colors"
+                  id="remove-pdf-btn"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Remove
+                </button>
               </>
             ) : (
               <>

@@ -2,8 +2,10 @@
  * MisconceptionCard.jsx — Feedback card after answer submission
  * Green for correct, red for misconception detected
  */
-import { CheckCircle2, XCircle, AlertTriangle, ChevronRight, BarChart3, TrendingUp, CalendarPlus } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, ChevronRight, BarChart3, TrendingUp, CalendarPlus, Sparkles } from 'lucide-react';
 import { generateICS } from '../utils/calendar';
+import { useEffect } from 'react';
+import { getSession } from '../services/knowledgeModel';
 
 const BLOOM_LABELS = { 1: 'Remember', 2: 'Understand', 3: 'Apply', 4: 'Analyze', 5: 'Evaluate', 6: 'Create' };
 
@@ -11,11 +13,34 @@ export default function MisconceptionCard({ feedback, concept, bloomLevel, onNex
   if (!feedback) return null;
 
   const isCorrect = feedback.isCorrect;
+  const session = getSession();
+  const updatedConcept = session?.concepts[concept.id] || concept;
+  const isMastered = updatedConcept.teachingStatus === 'confirmed';
+
+  useEffect(() => {
+    if (isMastered) {
+      // Auto-schedule review on mastery
+      generateICS(concept.name, Date.now() + (updatedConcept.halfLifeDays || 1) * 24 * 60 * 60 * 1000);
+    }
+  }, [isMastered, concept.name, updatedConcept.halfLifeDays]);
 
   return (
     <div className="space-y-4 animate-scale-in">
       {/* Result Card */}
       <div className={`bento-card p-6 sm:p-8 border-2 ${isCorrect ? 'border-emerald-500/30' : 'border-red-500/30'}`}>
+        
+        {isMastered && (
+          <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/20 to-guru-500/20 border border-emerald-500/30 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-6 h-6 text-emerald-400" />
+              <div>
+                <h4 className="font-bold text-emerald-300">Concept Mastered!</h4>
+                <p className="text-sm text-surface-300">You've successfully learned {concept.name}. A calendar invite has been downloaded to schedule your first spaced repetition review.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-start gap-4 mb-6">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${

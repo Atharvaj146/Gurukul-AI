@@ -11,7 +11,7 @@
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 // Using gemini-2.5-flash because gemini-2.0-flash has a hard quota limit of 0 for this key.
 // The previous 503 error on 2.5 was just a temporary high demand spike, which the retry loop will handle.
-const MODEL_NAME = 'gemini-2.5-flash';  
+const MODEL_NAME = 'gemini-3-flash-preview';  
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
 
 async function callGemini(systemInstruction, userMessage, retries = 3) {

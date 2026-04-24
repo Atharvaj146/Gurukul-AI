@@ -9,6 +9,7 @@ import GapAnalysis from './components/GapAnalysis';
 import Roadmap from './components/Roadmap';
 import QuizCard from './components/QuizCard';
 import Dashboard from './components/Dashboard';
+import Teaching from './components/Teaching';
 import { X, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 
 function AppContent() {
@@ -19,6 +20,7 @@ function AppContent() {
     'diagnostic': Diagnostic,
     'gap-analysis': GapAnalysis,
     'roadmap': Roadmap,
+    'teaching': Teaching,
     'quiz': QuizCard,
     'dashboard': Dashboard,
   };
