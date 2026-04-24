@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════
+   GURUKUL AI — Premium Bento UI
+   ═══════════════════════════════════════════════ */
+
+:root {
+  --app-bg: #0F1014;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--app-bg);
+  color: #FFFFFF;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Noise overlay for premium texture ── */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 50;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--app-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: #2E313D;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A1A1AA;
+}
+
+@layer components {
+  /* Bento UI Cards */
+  .bento-card {
+    @apply relative overflow-hidden rounded-[24px] bg-surface border border-surface-border transition-all duration-300;
+  }
+  
+  .bento-card:hover {
+    @apply border-surface-hover shadow-soft;
+  }
+
+  .card-yellow {
+    @apply bg-card-yellow text-card-yellowText border-transparent;
+  }
+  .card-purple {
+    @apply bg-card-purple text-card-purpleText border-transparent;
+  }
+  .card-blue {
+    @apply bg-card-blue text-card-blueText border-transparent;
+  }
+  .card-green {
+    @apply bg-card-green text-card-greenText border-transparent;
+  }
+
+  .input-premium {
+    @apply w-full px-5 py-4 rounded-2xl bg-[#1A1B23] border border-surface-border
+           text-white placeholder-text-tertiary outline-none transition-all duration-200;
+  }
+
+  .input-premium:focus {
+    @apply border-primary ring-2 ring-primary/20 bg-[#242631];
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply px-6 py-4 rounded-2xl font-medium text-white bg-primary
+           transition-all duration-200 transform hover:bg-primary-hover hover:-translate-y-0.5
+           hover:shadow-glow disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-4 rounded-2xl font-medium text-white bg-surface border border-surface-border
+           transition-all duration-200 hover:bg-surface-hover hover:border-text-tertiary;
+  }
+
+  .btn-icon {
+    @apply p-2.5 rounded-xl bg-surface border border-surface-border text-text-secondary
+           transition-all duration-200 hover:bg-surface-hover hover:text-white;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider;
+  }
+  .badge-dark { @apply bg-[#14151A] text-text-secondary border border-surface-border; }
+}
+
+/* ── Typography utilities ── */
+.heading-display {
+  @apply font-display font-semibold tracking-tight;
+}
+
+/* ── Prose for teaching content ── */
+.teaching-prose {
+  @apply text-text-secondary leading-relaxed;
+}
+.teaching-prose h3 {
+  @apply text-xl font-display font-semibold text-white mt-8 mb-4;
+}
+.teaching-prose p {
+  @apply mb-5 text-base;
+}
+.teaching-prose code {
+  @apply px-2 py-1 rounded bg-[#14151A] border border-surface-border text-card-purple font-mono text-sm;
+}
+.teaching-prose strong {
+  @apply text-white font-medium;
+}
+.teaching-prose ul {
+  @apply list-disc list-inside space-y-2 mb-5 ml-2 text-base;
+}
