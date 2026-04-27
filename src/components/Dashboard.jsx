@@ -2,10 +2,10 @@
  * Dashboard.jsx — Progress stats, calibration score, mastery breakdown, knowledge graph
  */
 import { useState, useEffect } from 'react';
-import { BarChart3, Brain, Zap, Target, Clock, BookOpen, TrendingUp, RotateCcw, ChevronRight, AlertTriangle, Calendar, Settings, LayoutDashboard } from 'lucide-react';
+import { BarChart3, Brain, Zap, Target, Clock, BookOpen, TrendingUp, RotateCcw, ChevronRight, AlertTriangle, Calendar, LayoutDashboard, History, Sparkles, MessageSquare, X } from 'lucide-react';
 import { useSession } from '../context/SessionContext';
-import { getSession, saveSession, getConceptStats, getOverdueConcepts, clearSession } from '../services/knowledgeModel';
-import { generateICS } from '../utils/calendar';
+import { getSession, saveSession, getConceptStats, getOverdueConcepts, clearSession, archiveCurrentSession, getArchivedSessions, restoreSession } from '../services/knowledgeModel';
+import { addToGoogleCalendar } from '../utils/calendar';
 import KnowledgeGraph from './KnowledgeGraph';
 
 export default function Dashboard() {
@@ -13,10 +13,17 @@ export default function Dashboard() {
   const [session, setLocalSession] = useState(null);
   const [stats, setStats] = useState(null);
   const [overdue, setOverdue] = useState([]);
+  const [archives, setArchives] = useState([]);
   
   // Calendar scheduling state
   const [schedulingConcept, setSchedulingConcept] = useState(null);
   const [scheduleDate, setScheduleDate] = useState('');
+  
+  // Past Chat Modal state
+  const [viewingPastChat, setViewingPastChat] = useState(null);
+
+  // Constellation Graph Side Panel state
+  const [selectedGraphConcept, setSelectedGraphConcept] = useState(null);
 
   useEffect(() => {
     refresh();
@@ -28,6 +35,7 @@ export default function Dashboard() {
   function refresh() {
     const s = getSession();
     setLocalSession(s);
+    setArchives(getArchivedSessions());
     if (s) {
       setStats(getConceptStats(s));
       setOverdue(getOverdueConcepts(s));
@@ -35,10 +43,18 @@ export default function Dashboard() {
   }
 
   function handleReset() {
-    if (confirm('Are you sure? This will clear all your progress.')) {
-      clearSession();
+    if (confirm('Archive this session and start a new topic?')) {
+      archiveCurrentSession();
       navigate('upload');
     }
+  }
+
+  function startMicroQuiz(conceptId) {
+    // updateStudent is used to force the scheduler to pick this specific concept
+    import('../services/knowledgeModel').then(m => {
+      m.updateStudent({ forcedConceptId: conceptId });
+      navigate('quiz');
+    });
   }
 
   function downloadCheatSheet() {
@@ -126,6 +142,9 @@ export default function Dashboard() {
   const totalQ = session.student.totalQuestionsAnswered || 0;
   const totalCorrect = session.student.totalCorrectAnswers || 0;
   const accuracy = totalQ > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0;
+  
+  // Basic streak/days logic based on session creation time
+  const daysStudied = Math.max(1, Math.ceil((Date.now() - (session.createdAt || Date.now())) / 86400000));
 
   // Mastery distribution for the bar
   const masteryPct = {
@@ -139,23 +158,42 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background px-4 py-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-display font-bold text-surface-100">Dashboard</h1>
-            <p className="text-surface-400 text-sm">{session.mainTopic}</p>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-xs font-semibold text-brand-gold uppercase tracking-wider mb-2">
+              <Zap className="w-3 h-3" /> Active Session
+            </div>
+            <h1 className="text-3xl font-display font-bold text-surface-100">{session.mainTopic}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={downloadCheatSheet} className="btn-ghost text-surface-500 hover:text-emerald-400" title="Export Cheat Sheet">
-              <BookOpen className="w-4 h-4" />
-            </button>
             <button onClick={() => navigate('quiz')} className="btn-primary flex items-center gap-2" id="continue-quiz-btn">
-              <Zap className="w-4 h-4" /> Continue Quiz
+              <Zap className="w-4 h-4" /> Continue Learning
             </button>
-            <button onClick={handleReset} className="btn-ghost text-surface-500 hover:text-red-400" id="reset-btn">
-              <RotateCcw className="w-4 h-4" />
+            <button onClick={handleReset} className="btn-ghost text-surface-400 hover:text-white" title="Archive & Start New">
+              <RotateCcw className="w-4 h-4" /> New Topic
             </button>
           </div>
         </div>
+
+        {/* GAMIFIED REWARD: Cheat Sheet Unlock */}
+        {stats.mastered > 0 && stats.mastered >= Math.floor(stats.total * 0.5) && (
+          <div className="relative overflow-hidden rounded-2xl p-6 bg-gradient-to-r from-brand-gold/20 via-brand-gold/10 to-transparent border border-brand-gold/30 animate-scale-in">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-brand-gold/20 blur-3xl rounded-full" />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-brand-gold mb-1">
+                  <Sparkles className="w-5 h-5" />
+                  <span className="font-bold uppercase tracking-widest text-xs">Achievement Unlocked</span>
+                </div>
+                <h3 className="text-xl font-display font-bold text-white">Your custom Cheat Sheet is ready!</h3>
+                <p className="text-sm text-brand-gold/80 mt-1">You've mastered over 50% of the material.</p>
+              </div>
+              <button onClick={downloadCheatSheet} className="btn-primary shadow-xl shadow-brand-gold/20 flex-shrink-0">
+                <BookOpen className="w-4 h-4 mr-2" /> Download Markdown
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Overdue alert */}
         {overdue.length > 0 && (
@@ -175,7 +213,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Total Concepts', value: stats.total, icon: BookOpen, color: 'text-guru-400' },
-            { label: 'Questions Answered', value: totalQ, icon: Target, color: 'text-violet-400' },
+            { label: 'Days Studied', value: `${daysStudied} 🔥`, icon: Clock, color: 'text-orange-400' },
             { label: 'Accuracy', value: `${accuracy}%`, icon: TrendingUp, color: accuracy >= 70 ? 'text-emerald-400' : 'text-amber-400' },
             { label: 'Calibration', value: `${calibration}%`, icon: Brain, color: calibration >= 70 ? 'text-emerald-400' : calibration >= 50 ? 'text-amber-400' : 'text-red-400' },
           ].map(({ label, value, icon: Icon, color }) => (
@@ -207,73 +245,147 @@ export default function Dashboard() {
         </div>
 
         {/* Knowledge Graph */}
-        <KnowledgeGraph onNodeClick={(id) => { navigate('quiz'); }} />
+        <KnowledgeGraph onNodeClick={(id) => { setSelectedGraphConcept(session.concepts[id]); }} />
 
-        {/* Calibration insight */}
+        {/* Calibration insight (Gauge Chart visually replacing text) */}
         {totalQ >= 5 && (
-          <div className="bento-card p-5 space-y-2">
-            <div className="flex items-center gap-2">
-              <Brain className="w-5 h-5 text-guru-400" />
-              <h3 className="font-semibold text-surface-100">Confidence Calibration</h3>
+          <div className="bento-card p-6 flex flex-col md:flex-row items-center gap-8">
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-guru-400" />
+                <h3 className="font-semibold text-surface-100 text-lg">Confidence Calibration</h3>
+              </div>
+              <p className="text-sm text-surface-400">
+                {calibration >= 75
+                  ? '🎯 Excellent! You have a perfect grasp of what you actually know.'
+                  : calibration >= 50
+                  ? '📊 Decent. You sometimes overestimate or underestimate your knowledge.'
+                  : '⚠️ Low calibration — you may be overconfident. The AI is adapting.'}
+              </p>
+              <p className="text-xs text-surface-500">Based on your last 20 questions.</p>
             </div>
-            <p className="text-sm text-surface-400">
-              {calibration >= 75
-                ? '🎯 Excellent calibration! You know what you know and what you don\'t.'
-                : calibration >= 50
-                ? '📊 Decent calibration. You sometimes overestimate or underestimate your knowledge.'
-                : '⚠️ Low calibration — you may be overconfident in some topics. The system is adjusting.'}
-            </p>
-            <p className="text-xs text-surface-500">
-              Calibration = how accurately your confidence predicts your actual performance. Score based on last 20 answers.
-            </p>
+            
+            {/* Visual Gauge */}
+            <div className="flex-shrink-0 w-48 flex flex-col items-center">
+              <div className="relative w-32 h-16 overflow-hidden">
+                {/* Gauge Background */}
+                <div className="absolute top-0 left-0 w-32 h-32 rounded-full border-[12px] border-surface-800" />
+                {/* Gauge Fill */}
+                <div 
+                  className="absolute top-0 left-0 w-32 h-32 rounded-full border-[12px] border-t-emerald-500 border-r-emerald-500 border-b-transparent border-l-transparent transition-all duration-1000 origin-center"
+                  style={{ transform: `rotate(${-135 + (calibration / 100) * 180}deg)` }}
+                />
+              </div>
+              <div className="-mt-4 text-center">
+                <span className="text-3xl font-display font-bold text-white">{calibration}%</span>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Concept list */}
-        <div className="bento-card p-5 space-y-4">
-          <h3 className="font-semibold text-surface-100">All Concepts</h3>
-          <div className="grid gap-2">
-            {Object.values(session.concepts)
-              .sort((a, b) => b.masteryScore - a.masteryScore)
-              .map(c => (
-                <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-surface-800/30 hover:bg-surface-800/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      c.masteryScore >= 0.7 ? 'bg-emerald-500' :
-                      c.masteryScore >= 0.4 ? 'bg-amber-500' :
-                      c.masteryScore > 0 ? 'bg-red-500' : 'bg-surface-600'
-                    }`} />
-                    <span className="text-sm text-surface-200">{c.name}</span>
-                    {c.activeMisconceptions.length > 0 && (
-                      <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3 text-xs text-surface-500">
-                      <span>L{c.bloomsLevelAchieved}</span>
-                      <span>{Math.round(c.masteryScore * 100)}%</span>
-                      <span>{c.totalAnswered}Q</span>
+        {/* Grouped Concept List */}
+        <div className="space-y-6">
+          <h3 className="text-xl font-display font-bold text-surface-100 flex items-center gap-2">
+            <Target className="w-5 h-5 text-brand-gold" /> Knowledge Breakdown
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Needs Attention Column */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <h4 className="text-sm font-bold text-surface-200 uppercase tracking-widest">Needs Attention</h4>
+              </div>
+              <div className="space-y-2">
+                {Object.values(session.concepts)
+                  .filter(c => c.masteryScore < 0.4 && c.teachingStatus !== 'not_started')
+                  .sort((a, b) => a.masteryScore - b.masteryScore)
+                  .map(c => <ConceptRow key={c.id} c={c} />)
+                }
+                {Object.values(session.concepts).filter(c => c.masteryScore < 0.4 && c.teachingStatus !== 'not_started').length === 0 && (
+                  <p className="text-xs text-surface-500 p-3 bg-surface-900/50 rounded-xl border border-surface-800">You're completely caught up here!</p>
+                )}
+              </div>
+            </div>
+
+            {/* Currently Learning Column */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-2 h-2 rounded-full bg-amber-500" />
+                <h4 className="text-sm font-bold text-surface-200 uppercase tracking-widest">Currently Learning</h4>
+              </div>
+              <div className="space-y-2">
+                {Object.values(session.concepts)
+                  .filter(c => c.masteryScore >= 0.4 && c.masteryScore < 0.7)
+                  .sort((a, b) => b.masteryScore - a.masteryScore)
+                  .map(c => <ConceptRow key={c.id} c={c} />)
+                }
+                {Object.values(session.concepts).filter(c => c.masteryScore >= 0.4 && c.masteryScore < 0.7).length === 0 && (
+                  <p className="text-xs text-surface-500 p-3 bg-surface-900/50 rounded-xl border border-surface-800">No concepts currently in progress.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Mastered Column */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                <h4 className="text-sm font-bold text-surface-200 uppercase tracking-widest">Mastered</h4>
+              </div>
+              <div className="space-y-2">
+                {Object.values(session.concepts)
+                  .filter(c => c.masteryScore >= 0.7)
+                  .sort((a, b) => b.masteryScore - a.masteryScore)
+                  .map(c => <ConceptRow key={c.id} c={c} isMastered={true} />)
+                }
+                {Object.values(session.concepts).filter(c => c.masteryScore >= 0.7).length === 0 && (
+                  <p className="text-xs text-surface-500 p-3 bg-surface-900/50 rounded-xl border border-surface-800">Complete lessons and quizzes to master concepts.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* LEARNING ARCHIVE SHELF */}
+        {archives.length > 0 && (
+          <div className="pt-12 pb-6 space-y-6 border-t border-surface-800">
+            <h3 className="text-xl font-display font-bold text-surface-100 flex items-center gap-2">
+              <History className="w-5 h-5 text-surface-400" /> Learning Archive
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {archives.map(arch => {
+                const totalC = Object.keys(arch.concepts).length;
+                const masteredC = Object.values(arch.concepts).filter(c => c.masteryScore >= 0.7).length;
+                
+                return (
+                  <div key={arch.sessionId} className="bento-card p-5 space-y-4 hover:border-surface-600 transition-colors group">
+                    <div>
+                      <h4 className="font-bold text-surface-200">{arch.mainTopic}</h4>
+                      <p className="text-xs text-surface-500">Last active: {new Date(arch.lastActiveAt || arch.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-emerald-400 font-bold">{masteredC}/{totalC}</span>
+                      <span className="text-surface-400">Mastered</span>
                     </div>
                     <button 
                       onClick={() => {
-                        setSchedulingConcept(c);
-                        const tmrw = new Date(Date.now() + 86400000);
-                        // Convert to local datetime string format for input
-                        const offset = tmrw.getTimezoneOffset() * 60000;
-                        const localISOTime = (new Date(tmrw - offset)).toISOString().slice(0, 16);
-                        setScheduleDate(localISOTime);
+                        if (confirm(`Resume learning ${arch.mainTopic}? Your current session will be archived.`)) {
+                          if (restoreSession(arch.sessionId)) {
+                            notify('Session restored!', 'success');
+                            refresh();
+                          }
+                        }
                       }}
-                      className="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
-                      title="Schedule Review"
+                      className="w-full py-2 rounded-lg bg-surface-800 text-surface-300 text-sm font-semibold group-hover:bg-brand-gold/10 group-hover:text-brand-gold transition-colors"
                     >
-                      <Calendar className="w-4 h-4" />
+                      Resume Topic
                     </button>
                   </div>
-                </div>
-              ))
-            }
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Calendar Scheduling Modal */}
@@ -316,18 +428,178 @@ export default function Dashboard() {
               </button>
               <button 
                 onClick={() => {
-                  generateICS(`Review: ${schedulingConcept.name}`, new Date(scheduleDate).getTime());
-                  notify(`Calendar invite generated!`, 'success');
+                  addToGoogleCalendar(`Review: ${schedulingConcept.name}`, new Date(scheduleDate).getTime());
+                  notify(`Opened Google Calendar!`, 'success');
                   setSchedulingConcept(null);
                 }}
                 className="flex-1 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold transition-colors text-sm shadow-lg shadow-blue-500/20"
               >
-                Download .ics
+                Add to Google Calendar
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Past Chat Review Modal */}
+      {viewingPastChat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bento-card p-6 w-full max-w-2xl max-h-[80vh] flex flex-col animate-slide-up border-surface-700 bg-surface-900/95 shadow-2xl">
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-surface-800 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
+                  <MessageSquare className="w-5 h-5 text-violet-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-lg leading-tight">Past Lesson Log</h3>
+                  <p className="text-xs text-surface-400">{viewingPastChat.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setViewingPastChat(null)} className="p-2 text-surface-500 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-2 space-y-6 text-sm text-surface-300">
+              {viewingPastChat.teachingContent ? (
+                <>
+                  <div className="space-y-2">
+                    <h4 className="text-violet-400 font-bold uppercase tracking-wider text-xs">Worked Example</h4>
+                    <p className="leading-relaxed">{viewingPastChat.teachingContent.partA?.content || 'No example recorded.'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-guru-400 font-bold uppercase tracking-wider text-xs">Core Explanation</h4>
+                    <p className="leading-relaxed">{viewingPastChat.teachingContent.partB?.content || 'No explanation recorded.'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-amber-400 font-bold uppercase tracking-wider text-xs">Analogy</h4>
+                    <p className="leading-relaxed">{viewingPastChat.teachingContent.partC?.content || 'No analogy recorded.'}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+                  <BookOpen className="w-10 h-10 text-surface-600" />
+                  <p className="text-surface-400">No lesson log exists for this concept yet.</p>
+                  <button onClick={() => navigate('quiz')} className="btn-primary mt-2">Learn it now</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Constellation Side Panel */}
+      {selectedGraphConcept && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity" onClick={() => setSelectedGraphConcept(null)} />
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-surface-900 border-l border-surface-700 shadow-2xl p-6 flex flex-col animate-slide-left">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-surface-800">
+              <h3 className="font-display font-bold text-xl text-white">Concept Details</h3>
+              <button onClick={() => setSelectedGraphConcept(null)} className="p-2 text-surface-500 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-6">
+              <div>
+                <p className="text-xs text-surface-500 uppercase tracking-widest mb-1">Name</p>
+                <h4 className="text-lg font-bold text-surface-200">{selectedGraphConcept.name}</h4>
+              </div>
+              
+              <div>
+                <p className="text-xs text-surface-500 uppercase tracking-widest mb-1">Definition</p>
+                <p className="text-sm text-surface-300 leading-relaxed bg-surface-800/50 p-4 rounded-xl border border-surface-700/50">{selectedGraphConcept.definition}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-surface-800/50 p-4 rounded-xl border border-surface-700/50">
+                  <p className="text-xs text-surface-500 uppercase tracking-widest mb-1">Mastery</p>
+                  <p className="text-xl font-bold text-white">{Math.round(selectedGraphConcept.masteryScore * 100)}%</p>
+                </div>
+                <div className="bg-surface-800/50 p-4 rounded-xl border border-surface-700/50">
+                  <p className="text-xs text-surface-500 uppercase tracking-widest mb-1">Bloom Level</p>
+                  <p className="text-xl font-bold text-white">L{selectedGraphConcept.bloomsLevelAchieved}</p>
+                </div>
+              </div>
+
+              {selectedGraphConcept.activeMisconceptions?.length > 0 && (
+                <div>
+                  <p className="text-xs text-red-400 uppercase tracking-widest mb-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Active Misconceptions</p>
+                  <div className="space-y-2">
+                    {selectedGraphConcept.activeMisconceptions.map((m, i) => (
+                      <div key={i} className="text-sm text-surface-300 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                        <strong className="text-red-300">{m.name}:</strong> {m.description}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-6 border-t border-surface-800 mt-auto">
+              <button 
+                onClick={() => startMicroQuiz(selectedGraphConcept.id)}
+                className="w-full btn-primary py-4 text-sm font-bold flex justify-center items-center gap-2"
+              >
+                <Zap className="w-4 h-4" /> Study Just This Concept
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
+
+  // Subcomponent for cleaner rendering of rows
+  function ConceptRow({ c, isMastered }) {
+    return (
+      <div 
+        onClick={() => c.teachingStatus !== 'not_started' && setViewingPastChat(c)}
+        className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+          c.teachingStatus !== 'not_started' 
+            ? 'bg-surface-800/40 border-surface-700/50 hover:bg-surface-800 hover:border-surface-600 cursor-pointer group' 
+            : 'bg-surface-900/20 border-surface-800/20 opacity-50 cursor-not-allowed'
+        }`}
+      >
+        <div className="flex items-center gap-3 overflow-hidden">
+          <span className="truncate text-sm font-medium text-surface-200 group-hover:text-white transition-colors">
+            {c.name}
+          </span>
+          {c.activeMisconceptions.length > 0 && (
+            <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" title="Active Misconception" />
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!isMastered && c.teachingStatus !== 'not_started' && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                startMicroQuiz(c.id);
+              }}
+              className="px-2 py-1 bg-brand-gold/10 text-brand-gold hover:bg-brand-gold/20 rounded text-[10px] font-bold uppercase tracking-wide transition-colors"
+            >
+              Micro-Quiz
+            </button>
+          )}
+          {!isMastered && c.teachingStatus !== 'not_started' && (
+            <span className="text-[10px] uppercase font-bold text-surface-500 group-hover:text-violet-400 transition-colors ml-1">View Log</span>
+          )}
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setSchedulingConcept(c);
+              const tmrw = new Date(Date.now() + 86400000);
+              const offset = tmrw.getTimezoneOffset() * 60000;
+              const localISOTime = (new Date(tmrw - offset)).toISOString().slice(0, 16);
+              setScheduleDate(localISOTime);
+            }}
+            className={`p-1.5 rounded transition-colors ${isMastered ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'}`}
+            title="Schedule Calendar Review"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 }

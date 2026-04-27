@@ -67,8 +67,11 @@ export default function Teaching() {
       const teachingContent = await generateTeachingContent(currentConcept, studentLevel, bestConcept);
       setContent(teachingContent);
 
-      // Mark concept as in-progress
-      updateConcept(conceptId, { teachingStatus: 'in_progress' });
+      // Mark concept as in-progress and save the lesson content
+      updateConcept(conceptId, { 
+        teachingStatus: 'in_progress',
+        teachingContent: teachingContent 
+      });
 
       setPhase('teaching');
     } catch (err) {
@@ -197,7 +200,10 @@ export default function Teaching() {
             {currentPartData.key !== 'partD' && (
               <div className="space-y-4">
                 <div className="teaching-prose">
-                  {(currentPartData.data?.content || '').split('\n').map((line, i) => (
+                  {(typeof currentPartData.data === 'string' 
+                    ? currentPartData.data 
+                    : (currentPartData.data?.content || 'Content is still being prepared for this section.')
+                  ).split('\n').map((line, i) => (
                     <p key={i} className={line.match(/^(Step \d|#)/) ? 'font-semibold text-surface-100' : ''}>
                       {line}
                     </p>

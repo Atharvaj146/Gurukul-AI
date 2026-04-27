@@ -3,7 +3,7 @@
  * Green for correct, red for misconception detected
  */
 import { CheckCircle2, XCircle, AlertTriangle, ChevronRight, BarChart3, TrendingUp, CalendarPlus, Sparkles } from 'lucide-react';
-import { generateICS } from '../utils/calendar';
+import { addToGoogleCalendar } from '../utils/calendar';
 import { useEffect } from 'react';
 import { getSession } from '../services/knowledgeModel';
 
@@ -20,7 +20,7 @@ export default function MisconceptionCard({ feedback, concept, bloomLevel, onNex
   useEffect(() => {
     if (isMastered) {
       // Auto-schedule review on mastery
-      generateICS(concept.name, Date.now() + (updatedConcept.halfLifeDays || 1) * 24 * 60 * 60 * 1000);
+      addToGoogleCalendar(concept.name, Date.now() + (updatedConcept.halfLifeDays || 1) * 24 * 60 * 60 * 1000);
     }
   }, [isMastered, concept.name, updatedConcept.halfLifeDays]);
 
@@ -107,7 +107,7 @@ export default function MisconceptionCard({ feedback, concept, bloomLevel, onNex
       <div className="flex flex-wrap gap-3 justify-end">
         {isCorrect && (
           <button 
-            onClick={() => generateICS(concept.name, Date.now() + (concept.halfLifeDays || 1) * 24 * 60 * 60 * 1000)} 
+            onClick={() => addToGoogleCalendar(concept.name, Date.now() + (concept.halfLifeDays || 1) * 24 * 60 * 60 * 1000)}
             className="btn-icon flex items-center gap-2 px-4"
             title="Schedule next review"
           >

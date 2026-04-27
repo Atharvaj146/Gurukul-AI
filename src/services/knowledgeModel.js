@@ -6,6 +6,7 @@
  */
 
 const SESSION_KEY = 'gurukul_session';
+const ARCHIVE_KEY = 'gurukul_archive';
 
 // ═══════════════════════════════════════════════
 // Create a new session
@@ -28,6 +29,7 @@ export function createSession(mainTopic, concepts, dependencies = {}) {
       workedExampleSeen: false,
       diagramSeen: false,
       analogyGenerated: null,
+      teachingContent: null, // Stores the Socratic lesson and Quick Checks for review
 
       // Assessment state
       bloomsLevelAchieved: 0,
@@ -108,6 +110,58 @@ export function saveSession(session) {
 
 export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+  window.dispatchEvent(new CustomEvent('session-updated', { detail: null }));
+}
+
+export function archiveCurrentSession() {
+  const current = getSession();
+  if (!current) return;
+  const archives = getArchivedSessions();
+  
+  // Update last active time before archiving
+  current.lastActiveAt = Date.now();
+  
+  // Remove if it already exists in archive
+  const filtered = archives.filter(s => s.sessionId !== current.sessionId);
+  filtered.unshift(current); // put at start
+  
+  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(filtered));
+  clearSession();
+}
+
+export function getArchivedSessions() {
+  const raw = localStorage.getItem(ARCHIVE_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export function restoreSession(sessionId) {
+  const archives = getArchivedSessions();
+  const sessionToRestore = archives.find(s => s.sessionId === sessionId);
+  if (!sessionToRestore) return false;
+  
+  // Auto-archive current session if it exists before overwriting
+  const current = getSession();
+  if (current) {
+    archiveCurrentSession();
+  }
+  
+  // Remove the restored session from archives
+  const filtered = archives.filter(s => s.sessionId !== sessionId);
+  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(filtered));
+  
+  saveSession(sessionToRestore);
+  return true;
+}
+
+export function deleteArchivedSession(sessionId) {
+  const archives = getArchivedSessions();
+  const filtered = archives.filter(s => s.sessionId !== sessionId);
+  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(filtered));
   window.dispatchEvent(new CustomEvent('session-updated', { detail: null }));
 }
 

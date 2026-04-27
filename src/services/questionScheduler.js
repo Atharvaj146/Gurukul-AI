@@ -7,6 +7,14 @@ export function pickNextConcept(session) {
   const now = Date.now();
   const concepts = Object.values(session.concepts);
 
+  // P0: Targeted Micro-Quiz (Forced Concept)
+  if (session.student?.forcedConceptId) {
+    const forced = session.concepts[session.student.forcedConceptId];
+    if (forced) {
+      return { concept: forced, reason: 'Targeted Micro-Quiz' };
+    }
+  }
+
   // P1: Overdue for review
   const overdue = concepts
     .filter(c => c.nextReviewAt && c.nextReviewAt < now && c.totalAnswered > 0)

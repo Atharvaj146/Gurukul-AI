@@ -107,9 +107,15 @@ export default function QuizCard() {
     }
 
     // If the next concept hasn't been taught yet, redirect to the Teaching phase
-    if (pick.concept.teachingStatus !== 'taught' && pick.concept.teachingStatus !== 'confirmed') {
+    if (pick.concept.teachingStatus !== 'taught' && pick.concept.teachingStatus !== 'confirmed' && pick.concept.teachingStatus !== 'in_progress') {
       navigate('teaching');
       return;
+    }
+
+    // Clear forced concept so it's only a 1-question targeted quiz
+    if (s.student?.forcedConceptId) {
+      // updateStudent is imported from knowledgeModel
+      import('../services/knowledgeModel').then(m => m.updateStudent({ forcedConceptId: null }));
     }
 
     setCurrentConcept(pick.concept);

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSession } from '../context/SessionContext';
 import { Shield, Zap, RotateCcw, Calendar, CheckCircle2, AlertTriangle, Navigation, Brain } from 'lucide-react';
 import { getSession, saveSession, clearSession } from '../services/knowledgeModel';
-import { generateICS } from '../utils/calendar';
+import { addToGoogleCalendar } from '../utils/calendar';
 
 export default function AdminPanel() {
   const { navigate, notify } = useSession();
@@ -63,7 +63,7 @@ export default function AdminPanel() {
   }
 
   function testCalendar() {
-    generateICS('Admin_Test_Review', Date.now() + 3600000);
+    addToGoogleCalendar('Admin_Test_Review', Date.now() + 3600000);
     notify('Test calendar file downloaded!', 'success');
   }
 

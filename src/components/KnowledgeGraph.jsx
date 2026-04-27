@@ -29,10 +29,10 @@ export default function KnowledgeGraph({ onNodeClick, width = 700, height = 500 
     svg.selectAll('*').remove();
 
     const colorMap = {
-      gray: { fill: '#475569', stroke: '#64748b' },
-      red: { fill: '#ef4444', stroke: '#f87171' },
-      yellow: { fill: '#f59e0b', stroke: '#fbbf24' },
-      green: { fill: '#10b981', stroke: '#34d399' },
+      gray: { fill: '#1e293b', stroke: '#334155', glow: '#475569' },
+      red: { fill: '#7f1d1d', stroke: '#ef4444', glow: '#ef4444' },
+      yellow: { fill: '#78350f', stroke: '#f59e0b', glow: '#f59e0b' },
+      green: { fill: '#064e3b', stroke: '#10b981', glow: '#10b981' },
     };
 
     // Build nodes and links
@@ -56,35 +56,37 @@ export default function KnowledgeGraph({ onNodeClick, width = 700, height = 500 
 
     // Force simulation
     const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(80))
-      .force('charge', d3.forceManyBody().strength(-200))
+      .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+      .force('charge', d3.forceManyBody().strength(-300))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(35));
+      .force('collision', d3.forceCollide().radius(45));
 
-    // Defs for glow filter
+    // Defs for glow filters
     const defs = svg.append('defs');
-    const filter = defs.append('filter').attr('id', 'glow');
-    filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'coloredBlur');
-    const feMerge = filter.append('feMerge');
-    feMerge.append('feMergeNode').attr('in', 'coloredBlur');
-    feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+    Object.entries(colorMap).forEach(([key, val]) => {
+      const filter = defs.append('filter').attr('id', `glow-${key}`);
+      filter.append('feGaussianBlur').attr('stdDeviation', '6').attr('result', 'coloredBlur');
+      const feMerge = filter.append('feMerge');
+      feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+      feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+    });
 
     // Arrow marker
     defs.append('marker')
       .attr('id', 'arrowhead').attr('viewBox', '-0 -5 10 10')
-      .attr('refX', 25).attr('refY', 0).attr('orient', 'auto')
-      .attr('markerWidth', 6).attr('markerHeight', 6)
+      .attr('refX', 30).attr('refY', 0).attr('orient', 'auto')
+      .attr('markerWidth', 5).attr('markerHeight', 5)
       .append('path').attr('d', 'M 0,-5 L 10,0 L 0,5')
       .attr('fill', '#475569');
 
-    // Links
+    // Links (energy lines)
     const link = svg.append('g')
       .selectAll('line')
       .data(links)
       .join('line')
       .attr('stroke', '#334155')
       .attr('stroke-width', 1.5)
-      .attr('stroke-opacity', 0.5)
+      .attr('stroke-opacity', 0.8)
       .attr('marker-end', 'url(#arrowhead)');
 
     // Node groups
@@ -102,18 +104,18 @@ export default function KnowledgeGraph({ onNodeClick, width = 700, height = 500 
         if (onNodeClick) onNodeClick(d.id);
       });
 
-    // Node circles
+    // Node circles (Glowing Orbs)
     nodeGroup.append('circle')
-      .attr('r', 18)
+      .attr('r', 22)
       .attr('fill', d => colorMap[d.color].fill)
       .attr('stroke', d => colorMap[d.color].stroke)
-      .attr('stroke-width', 2.5)
-      .attr('filter', d => d.overdue ? 'url(#glow)' : null);
+      .attr('stroke-width', 3)
+      .attr('filter', d => `url(#glow-${d.color})`);
 
-    // Overdue pulsing circles
+    // Overdue pulsing aura
     nodeGroup.filter(d => d.overdue)
       .append('circle')
-      .attr('r', 18)
+      .attr('r', 22)
       .attr('fill', 'none')
       .attr('stroke', d => colorMap[d.color].stroke)
       .attr('stroke-width', 2)
@@ -121,29 +123,30 @@ export default function KnowledgeGraph({ onNodeClick, width = 700, height = 500 
       .each(function () {
         const el = d3.select(this);
         function pulse() {
-          el.transition().duration(1000).attr('r', 25).attr('opacity', 0)
-            .transition().duration(0).attr('r', 18).attr('opacity', 0.5)
+          el.transition().duration(1200).attr('r', 35).attr('opacity', 0)
+            .transition().duration(0).attr('r', 22).attr('opacity', 0.8)
             .on('end', pulse);
         }
         pulse();
       });
 
-    // Mastery percentage
+    // Mastery percentage inside node
     nodeGroup.append('text')
       .text(d => d.mastery > 0 ? `${Math.round(d.mastery * 100)}` : '')
       .attr('text-anchor', 'middle')
       .attr('dy', '0.35em')
-      .attr('fill', '#fff')
-      .attr('font-size', '10px')
-      .attr('font-weight', '600');
+      .attr('fill', '#ffffff')
+      .attr('font-size', '12px')
+      .attr('font-weight', '700');
 
-    // Labels
+    // Name Labels below node
     nodeGroup.append('text')
       .text(d => d.name.length > 16 ? d.name.slice(0, 14) + '…' : d.name)
       .attr('text-anchor', 'middle')
-      .attr('dy', '32')
-      .attr('fill', '#94a3b8')
-      .attr('font-size', '10px');
+      .attr('dy', '38')
+      .attr('fill', '#cbd5e1')
+      .attr('font-size', '11px')
+      .attr('font-weight', '500');
 
     // Tick
     simulation.on('tick', () => {
