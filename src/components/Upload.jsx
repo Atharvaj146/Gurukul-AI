@@ -1,19 +1,17 @@
 import { useState, useRef } from 'react';
-import { Upload as UploadIcon, FileText, Sparkles, BookOpen, Brain, Zap, X, ArrowRight } from 'lucide-react';
 import { useSession } from '../context/SessionContext';
+import { BookOpen, FileText, Zap, Brain, Target, Star, ChevronDown, Clock, Shield, Book, Upload as UploadIcon, X, ArrowRight } from 'lucide-react';
 import { extractTextFromPDF } from '../utils/pdfParser';
-import { extractConcepts } from '../services/geminiAPI';
-import { createSession } from '../services/knowledgeModel';
-
-import Science from './Science';
+import { extractConcepts, generateAllMisconceptions } from '../services/geminiAPI';
+import { createSession, getSession, saveSession } from '../services/knowledgeModel';
 
 export default function Upload() {
-  const { navigate, setLoading, setError, notify, loading } = useSession();
+  const { navigate, notify, setLoading: setGlobalLoading, setError } = useSession();
   const [topic, setTopic] = useState('');
   const [pastedText, setPastedText] = useState('');
   const [file, setFile] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [extracting, setExtracting] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleDrag = (e) => {
@@ -34,248 +32,182 @@ export default function Upload() {
     }
   };
 
-  const handleFileSelect = (e) => {
-    if (e.target.files?.[0]) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleRemoveFile = (e) => {
-    e.stopPropagation();
-    setFile(null);
-    // Reset the file input so the same file can be re-selected
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleCardClick = () => {
-    // Only open file picker if no file is currently selected
-    if (!file) {
-      fileInputRef.current?.click();
-    }
-  };
-
   const handleStart = async () => {
     if (!topic.trim()) {
-      notify('Please enter what you want to learn', 'error');
+      notify('Please enter a topic name', 'error');
       return;
     }
+    /* 
+    if (!pastedText.trim() && !file) {
+      notify('Please paste notes or upload a PDF', 'error');
+      return;
+    }
+    */
 
-    setExtracting(true);
     setLoading(true);
+    setGlobalLoading(true);
 
     try {
       let documentText = pastedText;
       if (file) {
         notify('Extracting text from PDF...', 'info');
         const pdfText = await extractTextFromPDF(file);
-        documentText = documentText ? `${documentText}\n\n${pdfText}` : pdfText;
+        // Truncate for demo speed
+        const safePdfText = pdfText.length > 30000 ? pdfText.substring(0, 30000) + "...[TRUNCATED]" : pdfText;
+        documentText = documentText ? `${documentText}\n\n${safePdfText}` : safePdfText;
       }
 
-      notify('Analyzing material...', 'info');
+      notify('Analyzing material with AI...', 'info');
       const result = await extractConcepts(topic, documentText);
 
       if (result.concepts && result.concepts.length > 0) {
         createSession(result.mainTopic || topic, result.concepts, result.dependencies || {});
-        notify(`Found ${result.concepts.length} concepts!`, 'success');
+        notify(`Curriculum ready!`, 'success');
         navigate('diagnostic');
+
+        // Background misconceptions
+        generateAllMisconceptions(result.concepts).then(misconceptionsMap => {
+          const currentSession = getSession();
+          if (currentSession) {
+            result.concepts.forEach(concept => {
+              if (currentSession.concepts[concept.id] && misconceptionsMap[concept.id]) {
+                currentSession.concepts[concept.id].misconceptions = misconceptionsMap[concept.id];
+              }
+            });
+            saveSession(currentSession);
+          }
+        }).catch(err => console.error("BG Misconceptions failed:", err));
+
       } else {
-        setError('Could not extract concepts. Try a more specific topic or add notes.');
+        setError('Could not extract concepts. Try more specific text.');
       }
     } catch (err) {
-      setError(`Failed to extract concepts: ${err.message}`);
+      setError(`Failed: ${err.message}`);
     } finally {
-      setExtracting(false);
       setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
+  const suggestions = ["Quantum Mechanics", "Neural Networks", "Microeconomics", "Cell Biology"];
+
   return (
-    <>
-      <div className="min-h-screen bg-brand-navy flex flex-col justify-center items-center p-6 md:p-12 relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-brand-gold/10 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-[#050B16] blur-[80px] pointer-events-none" />
+    <div className="min-h-screen bg-brand-navy flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-brand-gold/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-blue-500/5 blur-[80px] pointer-events-none" />
 
-      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center animate-fade-in relative z-10">
-        
-        {/* Left Column: Typography & Copy */}
-        <div className="space-y-8">
-          <div className="flex flex-col items-start gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-brand-gold animate-pulse shadow-[0_0_15px_rgba(232,139,35,0.8)]" />
-              <h2 className="text-2xl md:text-3xl font-display font-extrabold text-white tracking-[0.2em] uppercase">
-                Gurukul <span className="text-brand-gold">AI</span>
-              </h2>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-navyDark/50 border border-brand-gold/20 text-xs font-semibold uppercase tracking-widest text-blue-200/80 shadow-lg">
-              Next-Gen Learning Platform
-            </div>
-          </div>
+      <div className="w-full max-w-6xl z-10 flex flex-col items-center animate-slide-up">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           
-          <h1 className="text-5xl md:text-7xl heading-display text-white leading-[1.1]">
-            Master any subject. <br />
-            <span className="text-brand-gold drop-shadow-md">Retain it forever.</span>
-          </h1>
-          
-          <p className="text-lg text-blue-100/70 max-w-lg leading-relaxed">
-            Upload your syllabus, lecture notes, or textbooks. We build a personalized learning roadmap based on 90 years of cognitive science—not just a generic chat.
-          </p>
-
-          <div className="flex flex-wrap gap-4 pt-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-              <div className="w-8 h-8 rounded-full bg-card-purple flex items-center justify-center text-card-purpleText">
-                <Brain className="w-4 h-4" />
-              </div>
-              Spaced Repetition
+          <div className="space-y-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-800/50 border border-surface-700 text-brand-gold text-xs font-medium uppercase tracking-wider">
+              <Zap className="w-4 h-4 fill-brand-gold" /> AI Study Companion
             </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-              <div className="w-8 h-8 rounded-full bg-card-blue flex items-center justify-center text-card-blueText">
-                <TargetIcon />
-              </div>
-              Misconception Checks
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-              <div className="w-8 h-8 rounded-full bg-card-yellow flex items-center justify-center text-card-yellowText">
-                <BookOpen className="w-4 h-4" />
-              </div>
-              Bloom's Taxonomy
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <Zap className="w-4 h-4" />
-              </div>
-              Active Recall
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-              <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              Feynman Technique
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-              <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                <FileText className="w-4 h-4" />
-              </div>
-              Socratic Questioning
+            <h1 className="text-5xl md:text-6xl font-display font-bold text-white leading-tight">
+              Master any subject. <br />
+              <span className="text-brand-gold">Retain it forever.</span>
+            </h1>
+            <p className="text-lg text-surface-400 leading-relaxed max-w-lg">
+              Upload your syllabus or notes. We build a personalized roadmap based on 90 years of cognitive science.
+            </p>
+            
+            <div className="grid grid-cols-2 gap-4 pt-4">
+              {[
+                { label: 'Spaced Repetition', icon: Clock },
+                { label: 'Misconception Checks', icon: Target },
+                { label: 'Bloom\'s Taxonomy', icon: Book },
+                { label: 'Active Recall', icon: Zap },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 text-surface-500">
+                  <div className="w-8 h-8 rounded-full bg-surface-800/50 flex items-center justify-center">
+                    <item.icon className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm">{item.label}</span>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
 
-        {/* Right Column: Bento Grid for Input */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          {/* Main Topic Input Card (Spans full width) */}
-          <div className="bento-card col-span-1 md:col-span-2 p-6 md:p-8 space-y-4">
-            <label className="block text-sm font-semibold text-text-secondary uppercase tracking-wider">What are we studying?</label>
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. Artificial Neural Networks"
-              className="input-premium text-lg w-full"
-              disabled={extracting}
-            />
-          </div>
-
-          {/* PDF Upload Card (Colored) */}
-          <div 
-            className={`bento-card col-span-1 p-6 flex flex-col items-center justify-center text-center gap-4 cursor-pointer transition-all duration-200
-              ${file ? 'card-green' : 'card-purple'}
-              ${dragActive ? 'scale-[1.02] shadow-xl' : ''}`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            onClick={handleCardClick}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            {file ? (
-              <>
-                <div className="w-12 h-12 rounded-full bg-black/10 flex items-center justify-center">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="font-semibold">{file.name}</p>
-                  <p className="text-xs opacity-70 mt-1">{(file.size / 1024).toFixed(0)} KB</p>
-                </div>
-                {/* Remove button */}
-                <button
-                  onClick={handleRemoveFile}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/15 hover:bg-black/25 text-sm font-medium transition-colors"
-                  id="remove-pdf-btn"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  Remove
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="w-12 h-12 rounded-full bg-black/5 flex items-center justify-center">
-                  <UploadIcon className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="font-semibold">Upload PDF</p>
-                  <p className="text-xs opacity-70 mt-1">Lecture slides, textbooks</p>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Paste Text Card */}
-          <div className="bento-card card-blue col-span-1 p-6 flex flex-col justify-between gap-4">
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Paste Notes
-              </p>
-              <textarea
-                value={pastedText}
-                onChange={(e) => setPastedText(e.target.value)}
-                placeholder="Or paste syllabus here..."
-                rows={3}
-                className="w-full mt-3 bg-black/5 rounded-xl p-3 text-sm placeholder-current/50 outline-none resize-none"
-                disabled={extracting}
+          <div className="bento-card p-8 bg-surface-900/60 backdrop-blur-xl border border-white/5 space-y-6">
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-surface-500 uppercase tracking-widest">1. Learning Goal</label>
+              <input 
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="input-premium w-full text-lg"
+                placeholder="e.g. Artificial Neural Networks"
               />
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map(s => (
+                  <button key={s} onClick={() => setTopic(s)} className="text-[10px] px-2 py-1 rounded-full bg-surface-800 border border-surface-700 text-surface-500 hover:text-brand-gold">
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Action Button (Spans full width) */}
-          <div className="col-span-1 md:col-span-2 pt-2">
-            <button
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div 
+                className={`flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer
+                  ${file ? 'border-brand-gold bg-brand-gold/5' : 'border-surface-700 hover:border-surface-500 bg-surface-800/30'}
+                  ${dragActive ? 'border-brand-gold bg-brand-gold/10' : ''}`}
+                onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input ref={fileInputRef} type="file" accept=".pdf" onChange={(e) => setFile(e.target.files?.[0])} className="hidden" />
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${file ? 'bg-brand-gold/20' : 'bg-surface-700'}`}>
+                  {file ? <CheckCircleIcon /> : <UploadIcon className="w-5 h-5 text-surface-400" />}
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-white">{file ? file.name.substring(0, 15) + '...' : 'Upload PDF'}</p>
+                  {file && <button onClick={(e) => { e.stopPropagation(); setFile(null); }} className="text-[10px] text-red-400 hover:underline">Remove</button>}
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-surface-800/30 border border-surface-700 flex flex-col gap-2 group focus-within:border-brand-gold/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-surface-400 flex items-center gap-2"><FileText className="w-3 h-3" /> Paste Notes</p>
+                  {!pastedText && (
+                    <button 
+                      onClick={() => setPastedText("The mitochondria is the powerhouse of the cell. It produces ATP through cellular respiration. It has an inner and outer membrane.")}
+                      className="text-[9px] text-brand-gold/60 hover:text-brand-gold transition-colors"
+                    >
+                      Use Sample
+                    </button>
+                  )}
+                </div>
+                <textarea 
+                  value={pastedText}
+                  onChange={(e) => setPastedText(e.target.value)}
+                  className="w-full flex-grow bg-transparent text-xs outline-none resize-none placeholder-surface-600 min-h-[80px]"
+                  placeholder="Or paste text here..."
+                />
+              </div>
+            </div>
+
+            <button 
               onClick={handleStart}
-              disabled={!topic.trim() || extracting}
-              className="btn-primary w-full py-5 text-lg flex items-center justify-center gap-3"
+              disabled={loading || !topic.trim()}
+              className="btn-primary w-full py-4 text-lg font-bold flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {extracting ? (
+              {loading ? 'Analyzing Topic...' : (
                 <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Building curriculum...
-                </>
-              ) : (
-                <>
-                  Start Learning <ArrowRight className="w-5 h-5" />
+                  {(!pastedText.trim() && !file) ? 'Start with AI Knowledge' : 'Start Learning'} 
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
           </div>
-
         </div>
       </div>
-      </div>
-      <Science />
-    </>
+    </div>
   );
 }
 
-function TargetIcon() {
+function CheckCircleIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+    <svg className="w-6 h-6 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
     </svg>
-  )
+  );
 }

@@ -1,11 +1,11 @@
 /**
  * QuizCard.jsx — Step 7: Adaptive quiz with confidence selector + misconception detection
  */
-import { useState, useEffect } from 'react';
-import { Zap, Brain, Send, Lightbulb, ChevronRight, BarChart3, BookOpen, ArrowLeft } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Zap, Brain, Send, Lightbulb, ChevronRight, BarChart3, BookOpen, ArrowLeft, Mic } from 'lucide-react';
 import { useSession } from '../context/SessionContext';
 import { getSession, recordAnswer, updateConcept, updateRoadmap, getConceptStats } from '../services/knowledgeModel';
-import { generateQuizQuestion, evaluateAnswer } from '../services/geminiAPI';
+import { generateQuizQuestion, evaluateAnswer } from '../services/misconceptionEngine';
 import { pickNextConcept, getTargetBloomLevel, getZPDFallbackLevel, isConceptConfirmed } from '../services/questionScheduler';
 import MisconceptionCard from './MisconceptionCard';
 
@@ -31,8 +31,60 @@ export default function QuizCard() {
   const [phase, setPhase] = useState('loading'); // loading | question | submitted | feedback
   const [feedback, setFeedback] = useState(null);
   const [showHint, setShowHint] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
 
-  useEffect(() => { loadNextQuestion(); }, []);
+  useEffect(() => {
+    // Initialize speech recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+
+      recognitionRef.current.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        if (finalTranscript) {
+          setAnswer((prev) => prev + (prev.endsWith(' ') ? '' : ' ') + finalTranscript);
+        }
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+    
+    loadNextQuestion(); 
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } else {
+        notify('Speech recognition is not supported in this browser.', 'error');
+      }
+    }
+  };
 
   async function loadNextQuestion() {
     setPhase('loading');
@@ -43,10 +95,16 @@ export default function QuizCard() {
 
     const s = getSession();
     setLocalSession(s);
-    if (!s) return;
+    if (!s) {
+      setPhase('empty');
+      return;
+    }
 
     const pick = pickNextConcept(s);
-    if (!pick) { navigate('dashboard'); return; }
+    if (!pick) {
+      setPhase('empty');
+      return;
+    }
 
     // If the next concept hasn't been taught yet, redirect to the Teaching phase
     if (pick.concept.teachingStatus !== 'taught' && pick.concept.teachingStatus !== 'confirmed') {
@@ -104,6 +162,25 @@ export default function QuizCard() {
       notify(`Failed to evaluate answer: ${err.message}`, 'error');
       setPhase('question');
     }
+  }
+
+  if (phase === 'empty') {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md space-y-6">
+          <div className="w-20 h-20 rounded-full bg-surface-800 flex items-center justify-center mx-auto">
+            <Zap className="w-10 h-10 text-surface-600" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-display font-bold text-surface-100">Ready to Practice?</h2>
+            <p className="text-surface-400">You need an active study session before you can start taking quizzes. Upload a topic to begin!</p>
+          </div>
+          <button onClick={() => navigate('upload')} className="btn-primary w-full py-3">
+            Start Your First Session
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (phase === 'loading') {
@@ -202,13 +279,28 @@ export default function QuizCard() {
 
               {/* Answer area */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-surface-300">Your answer</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-surface-300">Your answer</label>
+                  <button
+                    onClick={toggleListening}
+                    disabled={phase === 'submitted'}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      isListening 
+                        ? 'bg-rose-500/20 text-rose-400 animate-pulse border border-rose-500/30' 
+                        : 'bg-surface-800 text-surface-400 hover:text-surface-200 hover:bg-surface-700'
+                    }`}
+                    title="Use Voice Typing (Feynman Technique)"
+                  >
+                    <Mic className="w-3.5 h-3.5" />
+                    {isListening ? 'Listening...' : 'Hold to Speak'}
+                  </button>
+                </div>
                 <textarea
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   rows={5}
                   className="input-premium resize-none"
-                  placeholder="Type your answer here..."
+                  placeholder="Type your answer here, or click the mic to explain it out loud..."
                   disabled={phase === 'submitted'}
                   id="quiz-answer"
                 />

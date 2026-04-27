@@ -2,18 +2,41 @@
  * App.jsx — Main application shell for Gurukul AI
  * Routes between screens based on session state
  */
+import { useEffect } from 'react';
 import { SessionProvider, useSession } from './context/SessionContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './components/Login';
 import Upload from './components/Upload';
 import Diagnostic from './components/Diagnostic';
 import GapAnalysis from './components/GapAnalysis';
 import Roadmap from './components/Roadmap';
+import Teaching from './components/Teaching';
 import QuizCard from './components/QuizCard';
 import Dashboard from './components/Dashboard';
-import Teaching from './components/Teaching';
+import Onboarding from './components/Onboarding';
+import AdminPanel from './components/AdminPanel';
+import AdminLogin from './components/AdminLogin';
+import AppLayout from './components/AppLayout';
 import { X, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 
 function AppContent() {
-  const { currentScreen, loading, error, notification, dispatch } = useSession();
+  const { currentScreen, loading, error, notification, dispatch, navigate } = useSession();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    // URL Routing for Admin
+    if (window.location.pathname === '/adminpanel') {
+      navigate('admin-login');
+    }
+
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        navigate('admin-login');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
 
   const screens = {
     'upload': Upload,
@@ -23,9 +46,25 @@ function AppContent() {
     'teaching': Teaching,
     'quiz': QuizCard,
     'dashboard': Dashboard,
+    'login': Login,
+    'onboarding': Onboarding,
+    'admin': AdminPanel,
+    'admin-login': AdminLogin,
   };
 
-  const Screen = screens[currentScreen] || Upload;
+  if (authLoading) {
+    return <div className="min-h-screen bg-brand-navy flex items-center justify-center"><div className="w-8 h-8 border-4 border-brand-gold/30 border-t-brand-gold rounded-full animate-spin"></div></div>;
+  }
+
+  // Synchronous URL check to avoid race conditions on first load
+  const isDirectAdminRoute = window.location.pathname.startsWith('/adminpanel');
+  const actualScreen = isDirectAdminRoute && (currentScreen === 'upload' || currentScreen === 'login') 
+    ? 'admin-login' 
+    : currentScreen;
+
+  // If not logged in, force Login screen UNLESS it's an admin screen
+  const isAdminScreen = actualScreen === 'admin-login' || actualScreen === 'admin';
+  const Screen = (!user && !isAdminScreen) ? Login : (screens[actualScreen] || Upload);
 
   return (
     <div className="relative">
@@ -67,15 +106,23 @@ function AppContent() {
       )}
 
       {/* Screen */}
-      <Screen />
+      {user ? (
+        <AppLayout>
+          <Screen />
+        </AppLayout>
+      ) : (
+        <Screen />
+      )}
     </div>
   );
 }
 
 export default function App() {
   return (
-    <SessionProvider>
-      <AppContent />
-    </SessionProvider>
+    <AuthProvider>
+      <SessionProvider>
+        <AppContent />
+      </SessionProvider>
+    </AuthProvider>
   );
 }

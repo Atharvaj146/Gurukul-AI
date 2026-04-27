@@ -49,6 +49,8 @@ export function createSession(mainTopic, concepts, dependencies = {}) {
       // Misconception tracking
       activeMisconceptions: [],
       resolvedMisconceptions: [],
+      misconceptions: c.misconceptions || [],
+      cachedQuestions: [],
     };
   });
 

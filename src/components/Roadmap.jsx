@@ -20,10 +20,10 @@ import { getSession, setRoadmapSequence } from '../services/knowledgeModel';
 /* ── Custom Node Component ── */
 function ConceptNode({ data }) {
   const tierColors = {
-    foundation: { bg: 'bg-violet-500/20', border: 'border-violet-500/40', text: 'text-violet-300', ring: 'ring-violet-500/30' },
-    bridge: { bg: 'bg-amber-500/20', border: 'border-amber-500/40', text: 'text-amber-300', ring: 'ring-amber-500/30' },
-    core: { bg: 'bg-guru-500/20', border: 'border-guru-500/40', text: 'text-guru-300', ring: 'ring-guru-500/30' },
-    extension: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-300', ring: 'ring-emerald-500/30' },
+    foundation: { bg: 'bg-violet-500/5', border: 'border-violet-500/20', text: 'text-violet-400', shadow: 'shadow-violet-500/5' },
+    bridge: { bg: 'bg-amber-500/5', border: 'border-amber-500/20', text: 'text-amber-400', shadow: 'shadow-amber-500/5' },
+    core: { bg: 'bg-guru-500/5', border: 'border-guru-500/20', text: 'text-guru-400', shadow: 'shadow-guru-500/5' },
+    extension: { bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', text: 'text-emerald-400', shadow: 'shadow-emerald-500/5' },
   };
 
   const colors = tierColors[data.tier] || tierColors.core;
@@ -31,42 +31,43 @@ function ConceptNode({ data }) {
 
   return (
     <div
-      className={`px-5 py-4 rounded-2xl border-2 ${colors.border} ${colors.bg} backdrop-blur-sm min-w-[180px] max-w-[220px]
-        transition-all duration-200 hover:scale-[1.03] hover:shadow-lg cursor-grab
-        ${data.isActive ? `ring-2 ${colors.ring} shadow-lg` : ''}
-        ${data.isLocked ? 'opacity-50' : ''}`}
-      style={{ background: 'rgba(20, 21, 30, 0.85)' }}
+      className={`px-6 py-4 rounded-2xl border-2 ${colors.border} ${colors.bg} backdrop-blur-xl min-w-[240px]
+        transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl ${colors.shadow} cursor-pointer
+        ${data.isActive ? 'ring-2 ring-brand-gold shadow-brand-gold/10 scale-[1.05] bg-surface-900/80' : ''}
+        ${data.isLocked ? 'opacity-30 grayscale' : ''}`}
+      style={{ background: 'rgba(15, 16, 20, 0.9)' }}
     >
-      <Handle type="target" position={Position.Left} style={{ background: '#475569', width: 8, height: 8 }} />
+      <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-surface-600" />
+      
       <div className="flex items-center justify-between mb-2">
-        <span className={`text-[10px] font-bold uppercase tracking-widest ${colors.text}`}>
-          {data.tierLabel}
-        </span>
-        <span className="text-[10px] text-surface-500 font-mono">#{data.step}</span>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${mastery >= 70 ? 'bg-emerald-500' : mastery > 0 ? 'bg-amber-500' : 'bg-surface-700'}`} />
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${colors.text}`}>
+            {data.tierLabel}
+          </span>
+        </div>
+        <span className="text-[10px] text-surface-600 font-mono font-bold">STEP {data.step}</span>
       </div>
 
-      <h4 className="text-sm font-semibold text-surface-100 leading-snug mb-2">{data.label}</h4>
+      <h4 className="text-base font-display font-bold text-white leading-tight mb-3">{data.label}</h4>
 
-      <div className="w-full h-1.5 bg-surface-800 rounded-full overflow-hidden mb-2">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${
-            mastery >= 70 ? 'bg-emerald-500' : mastery > 0 ? 'bg-amber-500' : 'bg-surface-600'
-          }`}
-          style={{ width: `${mastery}%` }}
-        />
-      </div>
-
-      <div className="flex items-center justify-between">
-        <span className={`text-xs font-medium ${mastery >= 70 ? 'text-emerald-400' : mastery > 0 ? 'text-amber-400' : 'text-surface-500'}`}>
-          {mastery}%
-        </span>
-        <div className="flex items-center gap-1">
-          {data.hasMisconception && <AlertTriangle className="w-3.5 h-3.5 text-red-400" />}
-          {data.isLocked && <Lock className="w-3.5 h-3.5 text-surface-500" />}
-          {mastery >= 70 && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 h-1.5 bg-surface-800/50 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${
+              mastery >= 70 ? 'bg-emerald-500' : mastery > 0 ? 'bg-amber-500' : 'bg-surface-700'
+            }`}
+            style={{ width: `${mastery}%` }}
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          {data.hasMisconception && <AlertTriangle className="w-4 h-4 text-red-400" />}
+          {mastery >= 70 && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+          {data.isLocked && <Lock className="w-4 h-4 text-surface-600" />}
         </div>
       </div>
-      <Handle type="source" position={Position.Right} style={{ background: '#475569', width: 8, height: 8 }} />
+
+      <Handle type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-surface-600" />
     </div>
   );
 }
@@ -94,24 +95,18 @@ export default function Roadmap() {
     const sequence = dr?.roadmapRecommendation || Object.keys(session.concepts);
     const tierEmoji = { foundation: '🧱 Foundation', bridge: '🌉 Bridge', core: '⚡ Core', extension: '🚀 Extension' };
 
-    const COLS = 3;
-    const X_GAP = 280;
-    const Y_GAP = 160;
-
     const flowNodes = sequence.map((conceptId, idx) => {
       const concept = session.concepts[conceptId];
       if (!concept) return null;
 
-      // Clean horizontal layout (Left to Right)
-      const x = idx * 320;
-      // Stagger Y slightly based on tier to make it look organic
-      const yTier = concept.tier === 'foundation' ? 0 : concept.tier === 'bridge' ? 120 : concept.tier === 'core' ? 240 : 360;
-      const y = yTier + (Math.sin(idx) * 40); // slight wave
+      // Vertical roadmap.sh style
+      const x = 0; // Centered
+      const y = idx * 150;
 
       return {
         id: conceptId,
         type: 'concept',
-        position: { x: x + 50, y: y + 50 },
+        position: { x, y },
         data: {
           label: concept.name,
           tier: concept.tier,
@@ -135,14 +130,14 @@ export default function Roadmap() {
           id: `e-${sequence[i]}-${sequence[i + 1]}`,
           source: sequence[i],
           target: sequence[i + 1],
-          type: 'smoothstep',
+          type: 'simplebezier',
           animated: true,
-          style: { stroke: '#6d5acd', strokeWidth: 2, opacity: 0.6 },
+          style: { stroke: '#6d5acd', strokeWidth: 4, opacity: 0.4 },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: '#6d5acd',
-            width: 16,
-            height: 16,
+            width: 15,
+            height: 15,
           },
         });
       }
@@ -176,7 +171,24 @@ export default function Roadmap() {
     setEdges(flowEdges);
   }, [session, setNodes, setEdges]);
 
-  if (!session) return null;
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md space-y-6">
+          <div className="w-20 h-20 rounded-full bg-surface-800 flex items-center justify-center mx-auto">
+            <Route className="w-10 h-10 text-surface-600" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-display font-bold text-surface-100">No Roadmap Yet</h2>
+            <p className="text-surface-400">Once you upload a topic and complete the diagnostic, we'll build your personalized learning path here.</p>
+          </div>
+          <button onClick={() => navigate('upload')} className="btn-primary w-full py-3">
+            Start Your First Session
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const dr = session.diagnosticResults;
   const sequence = dr?.roadmapRecommendation || Object.keys(session.concepts);
@@ -207,8 +219,8 @@ export default function Roadmap() {
           </div>
           <h2 className="text-3xl font-display font-bold text-surface-100">Your Learning Roadmap</h2>
           <p className="text-surface-400 max-w-lg mx-auto">
-            This interactive path is ordered by prerequisites, diagnostic results, and difficulty.
-            Drag nodes to rearrange. Animated arrows show your learning sequence.
+            A structured vertical path designed to optimize your learning flow. 
+            Each checkpoint is a milestone based on prerequisites and your diagnostic performance.
           </p>
         </div>
 
@@ -242,11 +254,15 @@ export default function Roadmap() {
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
             fitView
-            fitViewOptions={{ padding: 0.3 }}
+            fitViewOptions={{ padding: 0.2 }}
             proOptions={{ hideAttribution: true }}
             style={{ background: '#0F1014' }}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            zoomOnScroll={false}
+            panOnDrag={true}
           >
-            <Background color="#1E1F2E" gap={24} size={1} />
+            <Background color="#1E1F2E" gap={40} size={1} opacity={0.2} />
             <Controls
               showInteractive={false}
               className="!bg-surface !border-surface-border !rounded-xl !shadow-lg"
